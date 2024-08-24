@@ -6,7 +6,9 @@ class QueryBuilder
 {
     const ORDER_DESC = 'DESC';
     const ORDER_ASC = 'ASC';
+
     private \PDO $connection;
+    // строка запроса
     private string $query = '';
 
     private array $bindings = [];
@@ -18,39 +20,30 @@ class QueryBuilder
         $this->tablePrefix = $config['db_prefix'];
     }
 
-    private function connect(array $config): void
-    {
-        $dsn = "{$config['db_type']}:dbname={$config['db_name']};host={$config['host']};charset=UTF8";
-        $options = [
-          PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-          PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
-
-        ];
-        $this->connection = new PDO($dsn, $config['user'], $config['password'], $options);
-    }
-
     public function select(array $columns = ['*']): self
     {
-        $this->query .= 'SELECT ' . implode(',', $columns) . ' ';
+        $this->query .= ' SELECT ' . implode(',', $columns) . ' ';
         $this->returnRows = true;
         return $this;
     }
 
-    public function update($table, array $values): self
+    /**
+     * @param       $table - название таблицы
+     * @param array $values - массив вида: колонка => значение.
+     *
+     * @return $this
+     */
+    public function update(string $table, array $values): self
     {
-        $sets = '';
-        $this->bindings = [];
-
-        foreach ($values as $column => $value)
-        {
-            if (! is_scalar($value)) {
-                continue;
-            }
-            $sets .= $column . ' = ?,';
-            $this->bindings[] = $value;
+        if (! $this->isValuesScalar(array_values($values))) {
+            throw new InvalidValuesForQuery("Value must be scalar !!!");
         }
 
-        $this->query .= 'UPDATE ' . $this->getTableNameWithPrefix($table) . ' SET ' . trim($sets, ',');
+        $sets = implode(' = ?,', array_keys($values)) . ' = ? ';
+
+        $this->bindings = array_values($values);
+
+        $this->query .= ' UPDATE ' . $this->getTableNameWithPrefix($table) . ' SET ' . $sets;
         return $this;
     }
 
@@ -75,6 +68,13 @@ class QueryBuilder
 
     }
 
+    /**
+     * Выполнить запрос и вернуть результат
+     * Если необходимо вернуть результат запроса SELECT, то возвращаем все строки
+     * В остальных случаях возвращает bool: true - запрос выполнени успешно, false - неуспешно
+     *
+     * @return mixed
+     */
     public function execute(): mixed
     {
         $stmt = $this->connection->prepare($this->query);
@@ -108,10 +108,21 @@ class QueryBuilder
         return $this;
     }
 
-    public function from(string $tableName): self
+    public function from(string $table): self
     {
-        $this->query .= ' FROM ' . $this->getTableNameWithPrefix($tableName) . ' ';
+        $this->query .= ' FROM ' . $this->getTableNameWithPrefix($table) . ' ';
         return $this;
+    }
+
+    private function connect(array $config): void
+    {
+        $dsn = "{$config['db_type']}:dbname={$config['db_name']};host={$config['host']};charset=UTF8";
+        $options = [
+          PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+          PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
+
+        ];
+        $this->connection = new PDO($dsn, $config['user'], $config['password'], $options);
     }
 
     private function getTableNameWithPrefix(string $table): string
@@ -119,6 +130,13 @@ class QueryBuilder
         return $this->tablePrefix . $table;
     }
 
+    /**
+     * Проверяем, что в переданном массиве только скалярные значения
+     *
+     * @param $values - массив значений
+     *
+     * @return bool
+     */
     private function isValuesScalar($values): bool
     {
         $scalar = true;

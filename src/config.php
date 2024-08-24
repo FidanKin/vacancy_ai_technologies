@@ -2,10 +2,10 @@
 
 // задаем настройки подключения к БД
 return [
-  'db_type' => 'mysql',
-  'db_name' => 'vacancy_ai',
-  'db_prefix' => 'bn_',
-  'host' => 'localhost',
-  'user' => 'root',
+  'db_type' => '',
+  'db_name' => '',
+  'db_prefix' => '',
+  'host' => '',
+  'user' => '',
   'password' => '',
 ];
