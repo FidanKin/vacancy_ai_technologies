@@ -10,10 +10,10 @@ class QueryBuilder
     private \PDO $connection;
     // строка запроса
     private string $query = '';
-
     private array $bindings = [];
     private string $tablePrefix = '';
     private bool $returnRows = false;
+    
     public function __construct(array $config)
     {
         $this->connect($config);
